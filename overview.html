@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATOMS - Overview</title>
+  <link rel="stylesheet" href="atoms.css" />
+  <style>
+    /* Toolbar + native filter controls — not covered by atoms.css, so
+      styled locally using the same design tokens. */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .toolbar input[type="search"] {
+      flex: 1;
+      font-family: inherit;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 10px;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .toolbar input[type="search"]:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-bg);
+    }
+    .toolbar select {
+      font-family: inherit;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 10px;
+      font-size: 13px;
+      background: #fff;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar" data-sidebar></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1>Overview</h1>
+        <p>TLS compliance at a glance</p>
+      </div>
+    </div>
+
+    <div class="stat-grid" id="stat-row">
+      <div class="stat-card stat-card--dark">
+        <div class="stat-card__value">-</div>
+        <div class="stat-card__label">Total Scanned</div>
+      </div>
+      <div class="stat-card stat-card--green">
+        <div class="stat-card__value">-</div>
+        <div class="stat-card__label">Compliant</div>
+      </div>
+      <div class="stat-card stat-card--amber">
+        <div class="stat-card__value">-</div>
+        <div class="stat-card__label">Warnings</div>
+      </div>
+      <div class="stat-card stat-card--red">
+        <div class="stat-card__value">-</div>
+        <div class="stat-card__label">Non-Compliant</div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:0;">
+      <div class="toolbar">
+        <input type="search" id="search-input" placeholder="Search websites…" />
+        <select id="sort-select">
+          <option value="severity">Sort by: Severity high-low</option>
+          <option value="expiry">Sort by: Expiry soonest</option>
+          <option value="name">Sort by: Name A-Z</option>
+        </select>
+        <select id="status-filter">
+          <option value="">Filter by: Status</option>
+          <option value="compliant">Compliant</option>
+          <option value="warning">Warning</option>
+          <option value="noncompliant">Non-compliant</option>
+        </select>
+      </div>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Website</th>
+            <th>Status</th>
+            <th>Issuer</th>
+            <th>Valid Until</th>
+            <th>Days Left</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody id="cert-table-body">
+          <tr><td colspan="6" style="color:var(--text-secondary);">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="atoms.js"></script>
+  <script>
+    renderSidebar("overview");
+
+    const statusLabel = { compliant: "Compliant", warning: "Warning", noncompliant: "Not compliant" };
+
+    function renderSummary(summary) {
+      const cards = document.querySelectorAll("#stat-row .stat-card__value");
+      cards[0].textContent = summary.totalScanned;
+      cards[1].textContent = summary.compliant;
+      cards[2].textContent = summary.warnings;
+      cards[3].textContent = summary.nonCompliant;
+    }
+
+    function renderCertificates(certs) {
+      const body = document.getElementById("cert-table-body");
+      if (certs.length === 0) {
+        body.innerHTML = `<tr><td colspan="6" style="color:var(--text-secondary);">No certificates match this filter.</td></tr>`;
+        return;
+      }
+      body.innerHTML = certs.map(c => `
+        <tr onclick="window.location.href='certificate-detail.html?id=${encodeURIComponent(c.id)}'">
+          <td>${c.domain}</td>
+          <td><span class="pill pill--${c.status}">${statusLabel[c.status] ?? c.status}</span></td>
+          <td>${c.issuer}</td>
+          <td>${formatDate(c.validUntil)}</td>
+          <td>${c.daysLeft === null ? "Expired" : c.daysLeft}</td>
+          <td>${formatDate(c.lastUpdated)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function formatDate(iso) {
+      if (!iso) return "-";
+      const d = new Date(iso);
+      return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    }
+
+    async function loadCertificates() {
+      const params = {};
+      const search = document.getElementById("search-input").value.trim();
+      const status = document.getElementById("status-filter").value;
+      const sort = document.getElementById("sort-select").value;
+      if (search) params.search = search;
+      if (status) params.status = status;
+      if (sort) params.sort = sort;
+
+      try {
+        const certs = await Api.getCertificates(params);
+        renderCertificates(certs);
+      } catch (err) {
+        renderError(document.getElementById("cert-table-body").closest(".card"), err.message);
+      }
+    }
+
+    async function init() {
+      try {
+        const summary = await Api.getSummary();
+        renderSummary(summary);
+      } catch (err) {
+        renderError(document.getElementById("stat-row"), err.message);
+      }
+      await loadCertificates();
+    }
+
+    document.getElementById("search-input").addEventListener("input", debounce(loadCertificates, 300));
+    document.getElementById("status-filter").addEventListener("change", loadCertificates);
+    document.getElementById("sort-select").addEventListener("change", loadCertificates);
+
+    function debounce(fn, wait) {
+      let t;
+      return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+    }
+
+    init();
+  </script>
+</body>
+</html>

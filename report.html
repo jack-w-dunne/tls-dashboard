@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATOMS - Report</title>
+  <link rel="stylesheet" href="atoms.css" />
+  <style>
+    /* ---------- Chart ---------- */
+    .chart-wrap { position: relative; }
+    .chart-wrap svg { display: block; width: 100%; height: auto; }
+
+    .chart-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+      pointer-events: none;
+    }
+
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: var(--navy);
+      color: #fff;
+      font-size: 12px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      line-height: 1.5;
+      opacity: 0;
+      transform: translate(-50%, -110%);
+      transition: opacity 0.1s ease;
+      white-space: nowrap;
+      z-index: 5;
+    }
+    .chart-tooltip strong { display: block; font-size: 12px; margin-bottom: 2px; }
+    .chart-tooltip .row { display: flex; gap: 8px; justify-content: space-between; }
+
+    /* ---------- Dropdown (time range) ---------- */
+    .dropdown { position: relative; }
+    .dropdown__panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(16, 24, 40, 0.10);
+      padding: 6px;
+      min-width: 220px;
+      z-index: 10;
+    }
+    .dropdown__panel.is-open { display: block; }
+    .dropdown__option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .dropdown__option:hover { background: var(--bg); }
+
+    /* ---------- Empty-state rows ---------- */
+    .empty-row td {
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 18px 10px;
+    }
+
+    .activity-list { display: flex; flex-direction: column; }
+    .activity-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #F0F1F3;
+      font-size: 13.5px;
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .activity-item__text { color: var(--text); }
+    .activity-item__meta { color: var(--text-secondary); font-size: 12px; }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar" data-sidebar></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1>Report</h1>
+        <p>Certificate compliance over a period of browsing activity</p>
+      </div>
+      <button class="btn btn--outline" id="export-btn">Export report</button>
+    </div>
+
+    <!-- Time range picker: options populated from API (or a fixed preset list) via renderRangeOptions() -->
+    <div style="display:flex; justify-content:flex-end; margin-bottom:18px;">
+      <div class="dropdown" id="range-dropdown">
+        <div class="select" id="range-trigger">
+          <span id="range-label">Select range</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="dropdown__panel" id="range-panel"></div>
+      </div>
+    </div>
+
+    <!-- Stat cards: each value comes from GET /api/report/summary via data-stat binding -->
+    <div class="stat-grid">
+      <div class="stat-card stat-card--green">
+        <div class="stat-card__value" data-stat="avgCompliance">-</div>
+        <div class="stat-card__label">Avg compliance</div>
+      </div>
+      <div class="stat-card stat-card--blue">
+        <div class="stat-card__value" data-stat="policyChanges">-</div>
+        <div class="stat-card__label">Policy changes</div>
+      </div>
+      <div class="stat-card stat-card--dark">
+        <div class="stat-card__value" data-stat="resolvedIssues">-</div>
+        <div class="stat-card__label">Resolved issues</div>
+      </div>
+      <div class="stat-card stat-card--dark">
+        <div class="stat-card__value" data-stat="updates">-</div>
+        <div class="stat-card__label">Updates</div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="card">
+        <p class="card__title" id="chart-title">Daily compliance status breakdown</p>
+        <p class="card__subtitle">Percentage (%)</p>
+        <div class="chart-wrap" id="chart-wrap">
+          <svg id="chart-svg" viewBox="0 0 720 300" preserveAspectRatio="none"></svg>
+          <div class="chart-empty" id="chart-empty">No data for the selected range</div>
+          <div class="chart-tooltip" id="chart-tooltip"></div>
+        </div>
+        <div class="legend">
+          <span class="legend__item"><span class="legend__swatch" style="background: var(--green)"></span>Compliant</span>
+          <span class="legend__item"><span class="legend__swatch" style="background: var(--amber)"></span>Warning</span>
+          <span class="legend__item"><span class="legend__swatch" style="background: var(--red)"></span>Non-compliant</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="card__title">Top non-compliance</p>
+        <p class="card__subtitle">Most frequent issues this period</p>
+        <table class="data-table">
+          <thead>
+            <tr><th>Issue</th><th style="text-align:right;">Occurrences</th></tr>
+          </thead>
+          <tbody id="non-compliance-body">
+            <tr class="empty-row"><td colspan="2">No data yet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card__title">Certificate activity</p>
+      <p class="card__subtitle">Recent policy-relevant events across all domains</p>
+      <div class="activity-list" id="activity-list">
+        <p style="color: var(--text-secondary); font-size: 13px; margin: 4px 0;">No activity yet</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="atoms.js"></script>
+  <script>
+    renderSidebar("report");
+    initDropdown(document.getElementById("range-trigger"), document.getElementById("range-panel"));
+
+    /* ==========================================================
+       API INTEGRATION POINTS
+       Replace the render* calls at the bottom with real fetches,
+       e.g.:
+         fetch(`/api/report?range=${range}`)
+           .then(r => r.json())
+           .then(data => {
+             renderStats(data.summary);
+             renderChart(data.dailyBreakdown);
+             renderNonCompliance(data.topNonCompliance);
+             renderActivity(data.activity);
+           });
+       ========================================================== */
+
+    // ---- Time range options -------------------------------------------
+    // Populate from API (GET /api/report/ranges) or a fixed preset list.
+    function renderRangeOptions(ranges) {
+      const panel = document.getElementById("range-panel");
+      panel.innerHTML = ranges
+        .map((r) => `<button class="dropdown__option" data-range="${r}">${r}</button>`)
+        .join("");
+      panel.querySelectorAll(".dropdown__option").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.getElementById("range-label").textContent = btn.dataset.range;
+          panel.classList.remove("is-open");
+          // TODO: trigger fetch(`/api/report?range=${btn.dataset.range}`) here
+        });
+      });
+    }
+
+    // ---- Stat cards ------------------------------------------------------
+    function renderStats(stats) {
+      document.querySelectorAll("[data-stat]").forEach((el) => {
+        const key = el.dataset.stat;
+        el.textContent = stats && stats[key] !== undefined && stats[key] !== null ? stats[key] : "-";
+      });
+    }
+
+    // ---- Top non-compliance table -----------------------------------------
+    function renderNonCompliance(rows) {
+      const body = document.getElementById("non-compliance-body");
+      if (!rows || rows.length === 0) {
+        body.innerHTML = `<tr class="empty-row"><td colspan="2">No data yet</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows
+        .map((row) => `<tr><td>${row.issue}</td><td style="text-align:right; font-weight:600;">${row.count}</td></tr>`)
+        .join("");
+    }
+
+    // ---- Certificate activity feed -----------------------------------------
+    // Expected event shape: { text, meta, status: 'compliant'|'warning'|'noncompliant'|'info' }
+    const statusColor = {
+      compliant: "var(--green)",
+      warning: "var(--amber)",
+      noncompliant: "var(--red)",
+      info: "var(--blue)",
+    };
+
+    function renderActivity(events) {
+      const list = document.getElementById("activity-list");
+      if (!events || events.length === 0) {
+        list.innerHTML = `<p style="color: var(--text-secondary); font-size: 13px; margin: 4px 0;">No activity yet</p>`;
+        return;
+      }
+      list.innerHTML = events
+        .map(
+          (e) => `
+          <div class="activity-item">
+            <span class="activity-dot" style="background:${statusColor[e.status] || "var(--text-secondary)"}"></span>
+            <div>
+              <div class="activity-item__text">${e.text}</div>
+              <div class="activity-item__meta">${e.meta}</div>
+            </div>
+          </div>`
+        )
+        .join("");
+    }
+
+    // ---- Stacked area chart --------------------------------------------
+    // Expected series shape: [{ label: 'Aug 1', compliant, warning, noncompliant }, ...]
+    // Each row's three values should sum to 100 (percent of scanned certs that day).
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.getElementById("chart-svg");
+    const chartEmpty = document.getElementById("chart-empty");
+    const W = 720, H = 300;
+    const padL = 34, padR = 6, padT = 10, padB = 26;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+
+    function renderChart(series) {
+      svg.innerHTML = "";
+
+      if (!series || series.length === 0) {
+        chartEmpty.style.display = "flex";
+        return;
+      }
+      chartEmpty.style.display = "none";
+
+      const days = series.length;
+      const x = (i) => padL + (i / Math.max(days - 1, 1)) * innerW;
+      const y = (v) => padT + innerH - (v / 100) * innerH;
+
+      // Gridlines + y-axis labels (structural chrome, always drawn)
+      [0, 25, 50, 75, 100].forEach((v) => {
+        const line = document.createElementNS(svgNS, "line");
+        line.setAttribute("x1", padL);
+        line.setAttribute("x2", W - padR);
+        line.setAttribute("y1", y(v));
+        line.setAttribute("y2", y(v));
+        line.setAttribute("stroke", "#EEF0F3");
+        line.setAttribute("stroke-width", "1");
+        svg.appendChild(line);
+
+        const label = document.createElementNS(svgNS, "text");
+        label.setAttribute("x", 2);
+        label.setAttribute("y", y(v) + 4);
+        label.setAttribute("font-size", "10");
+        label.setAttribute("fill", "#98A2B3");
+        label.textContent = v + "%";
+        svg.appendChild(label);
+      });
+
+      const cum1 = (i) => series[i].compliant;
+      const cum2 = (i) => series[i].compliant + series[i].warning;
+      const cum3 = () => 100;
+
+      function bandPath(lowerFn, upperFn) {
+        let d = `M ${x(0)} ${y(lowerFn(0))} `;
+        for (let i = 0; i < days; i++) d += `L ${x(i)} ${y(lowerFn(i))} `;
+        for (let i = days - 1; i >= 0; i--) d += `L ${x(i)} ${y(upperFn(i))} `;
+        d += "Z";
+        return d;
+      }
+
+      function makePath(d, cssVar) {
+        const p = document.createElementNS(svgNS, "path");
+        p.setAttribute("d", d);
+        p.setAttribute("fill", getComputedStyle(document.documentElement).getPropertyValue(cssVar).trim());
+        p.setAttribute("opacity", "0.92");
+        svg.appendChild(p);
+      }
+
+      makePath(bandPath((i) => 0, cum1), "--green");
+      makePath(bandPath(cum1, cum2), "--amber");
+      makePath(bandPath(cum2, cum3), "--red");
+
+      // x-axis labels (thin out if there are many days)
+      const step = Math.max(1, Math.ceil(days / 7));
+      series.forEach((d, i) => {
+        if (i % step !== 0 && i !== days - 1) return;
+        const label = document.createElementNS(svgNS, "text");
+        label.setAttribute("x", x(i));
+        label.setAttribute("y", H - 6);
+        label.setAttribute("font-size", "10");
+        label.setAttribute("fill", "#98A2B3");
+        label.setAttribute("text-anchor", i === 0 ? "start" : i === days - 1 ? "end" : "middle");
+        label.textContent = d.label;
+        svg.appendChild(label);
+      });
+
+      // Hover line + tooltip
+      const hoverLine = document.createElementNS(svgNS, "line");
+      hoverLine.setAttribute("y1", padT);
+      hoverLine.setAttribute("y2", H - padB);
+      hoverLine.setAttribute("stroke", "#101828");
+      hoverLine.setAttribute("stroke-width", "1");
+      hoverLine.setAttribute("opacity", "0");
+      svg.appendChild(hoverLine);
+
+      const wrap = document.getElementById("chart-wrap");
+      const tooltip = document.getElementById("chart-tooltip");
+
+      wrap.onmousemove = (evt) => {
+        const rect = svg.getBoundingClientRect();
+        const relX = ((evt.clientX - rect.left) / rect.width) * W;
+        let idx = Math.round(((relX - padL) / innerW) * (days - 1));
+        idx = Math.max(0, Math.min(days - 1, idx));
+
+        hoverLine.setAttribute("x1", x(idx));
+        hoverLine.setAttribute("x2", x(idx));
+        hoverLine.setAttribute("opacity", "1");
+
+        const d = series[idx];
+        tooltip.innerHTML = `
+          <strong>${d.label}</strong>
+          <div class="row"><span>Compliant</span><span>${d.compliant}%</span></div>
+          <div class="row"><span>Warning</span><span>${d.warning}%</span></div>
+          <div class="row"><span>Non-compliant</span><span>${d.noncompliant}%</span></div>
+        `;
+        tooltip.style.opacity = "1";
+        tooltip.style.left = `${(x(idx) / W) * 100}%`;
+        tooltip.style.top = `${(y(100) / H) * 100}%`;
+      };
+      wrap.onmouseleave = () => {
+        hoverLine.setAttribute("opacity", "0");
+        tooltip.style.opacity = "0";
+      };
+    }
+
+    // ---- Export ------------------------------------------------------------
+    document.getElementById("export-btn").addEventListener("click", () => {
+      // TODO: call export endpoint, e.g. GET /api/report/export?range=...
+    });
+
+    /* ==========================================================
+       Initial skeleton render (no data yet - replace with the
+       fetch shown in the comment block above once the API is wired up)
+       ========================================================== */
+    renderRangeOptions(["Last 7 days", "Last 30 days", "Last 90 days", "Custom range…"]);
+    renderStats({});
+    renderChart([]);
+    renderNonCompliance([]);
+    renderActivity([]);
+  </script>
+</body>
+</html>

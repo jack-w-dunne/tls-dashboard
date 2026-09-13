@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATOMS - Configuration</title>
+  <link rel="stylesheet" href="atoms.css" />
+  <style>
+    /* ---------- Config layout: 2 boxes per row ---------- */
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .config-section__head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .config-rows { display: flex; flex-direction: column; }
+
+    .config-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid #F0F1F3;
+    }
+    .config-row:last-of-type { border-bottom: none; }
+
+    .config-row__label { font-size: 13.5px; color: var(--text); }
+    .config-row__hint {
+      display: block;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .config-row__control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* ---------- Entry type: days counter (number + unit) ---------- */
+
+    .field-number { display: flex; align-items: center; gap: 8px; }
+    .field-number input {
+      width: 56px;
+      text-align: right;
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 8px;
+      background: #fff;
+    }
+    .field-number input::placeholder { color: var(--text-secondary); font-weight: 500; }
+    .field-number input:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-bg);
+    }
+    .field-number .unit { font-size: 12.5px; color: var(--text-secondary); }
+
+    /* ---------- Entry type: enabled/disabled switch ---------- */
+
+    .toggle { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; }
+    .toggle input { display: none; }
+    .toggle__track {
+      width: 38px;
+      height: 22px;
+      border-radius: 999px;
+      background: #D0D5DD;
+      position: relative;
+      transition: background 0.15s ease;
+      flex-shrink: 0;
+    }
+    .toggle__thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.25);
+      transition: transform 0.15s ease;
+    }
+    .toggle input:checked + .toggle__track { background: var(--green); }
+    .toggle input:checked + .toggle__track .toggle__thumb { transform: translateX(16px); }
+
+    /* ---------- Entry type: dropdown ---------- */
+
+    .dropdown { position: relative; }
+    .dropdown__trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .dropdown__trigger:hover { border-color: #C7D7FE; }
+    .dropdown__trigger svg { color: var(--text-secondary); flex-shrink: 0; }
+    .dropdown__panel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+      padding: 6px;
+      min-width: 200px;
+      z-index: 10;
+    }
+    .dropdown__panel.is-open { display: block; }
+    .dropdown__option {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .dropdown__option:hover { background: var(--bg); }
+    .dropdown__option.is-selected { color: var(--blue); font-weight: 600; }
+
+    /* ---------- Add rule ---------- */
+
+    .add-rule {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue);
+      cursor: pointer;
+      padding: 12px 0 2px;
+    }
+    .add-rule:hover { color: #1D4ED8; }
+
+    .add-rule-form {
+      display: none;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 0 2px;
+      border-top: 1px solid #F0F1F3;
+      margin-top: 4px;
+    }
+    .add-rule-form.is-open { display: flex; }
+    .add-rule-form input[type="text"] {
+      flex: 1;
+      font-family: inherit;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 10px;
+    }
+    .add-rule-form input[type="text"]:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px var(--blue-bg);
+    }
+    .add-rule-form select {
+      font-family: inherit;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 7px 8px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    .save-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .save-bar__status { font-size: 12.5px; color: var(--text-secondary); margin-right: auto; }
+
+    @media (max-width: 900px) {
+      .config-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar" data-sidebar></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h1>Configuration</h1>
+        <p>View and manage the active security policy's rules</p>
+      </div>
+    </div>
+
+    <!-- 4 boxes total, 2 per row. Fully rendered by renderConfig(schema) below —
+         values shown as "-" until populated from the API. -->
+    <div class="config-grid" id="config-grid"></div>
+
+    <div class="save-bar">
+      <span class="save-bar__status" id="save-status">All changes saved</span>
+      <button class="btn btn--outline" id="reset-btn">Reset to defaults</button>
+      <button class="btn btn--primary" id="save-btn">Save changes</button>
+    </div>
+  </main>
+
+  <script src="atoms.js"></script>
+  <script>
+    renderSidebar("configuration");
+
+    // Placeholder schema: same structure the API will return, values unset.
+    // This keeps every box/entry-type visible immediately instead of behind
+    // a loading state. Swap this for the real fetch() shown above.
+    const placeholderSchema = {
+      sections: [
+        {
+          id: "validity",
+          title: "Certificate Validity",
+          rows: [
+            { id: "max_lifetime", label: "Maximum certificate lifetime", type: "number", unit: "days", value: null },
+            { id: "warn_expires_in", label: "Warn when expires in", type: "number", unit: "days", value: null },
+            { id: "reject_expired", label: "Reject expired certificates", type: "toggle", value: null },
+          ],
+        },
+        {
+          id: "issuer",
+          title: "Issuer Requirements",
+          rows: [
+            { id: "require_trusted_issuer", label: "Require trusted issuer", type: "toggle", value: null },
+            { id: "allowed_issuers", label: "Allowed issuers", type: "select", value: null, options: [] },
+            { id: "block_unapproved_issuers", label: "Block unapproved issuers", type: "toggle", value: null },
+          ],
+        },
+        {
+          id: "crypto",
+          title: "Cryptography",
+          rows: [
+            { id: "min_key_size", label: "Minimum key size", type: "select", value: null, options: [] },
+            { id: "min_protocol_version", label: "Minimum protocol version", type: "select", value: null, options: [] },
+          ],
+        },
+        {
+          id: "revocation",
+          title: "Revocation",
+          rows: [
+            { id: "check_revocation", label: "Check certificate revocation", type: "toggle", value: null },
+            { id: "revocation_method", label: "Revocation check method", type: "select", value: null, options: [] },
+          ],
+        },
+      ],
+    };
+
+    let unsaved = false;
+
+    // ---- Row / control builders --------------------------------------------
+    function buildControl(row) {
+      if (row.type === "number") {
+        return `
+          <span class="config-row__control field-number">
+            <input type="number" value="${row.value ?? ""}" placeholder="-" min="0" data-field="${row.id}" />
+            <span class="unit">${row.unit || ""}</span>
+          </span>`;
+      }
+      if (row.type === "toggle") {
+        return `
+          <label class="toggle">
+            <input type="checkbox" data-field="${row.id}" ${row.value ? "checked" : ""} />
+            <span class="toggle__track"><span class="toggle__thumb"></span></span>
+          </label>`;
+      }
+      if (row.type === "select") {
+        const selected = (row.options || []).find((o) => o.value === row.value);
+        const options = row.options && row.options.length
+          ? row.options
+              .map(
+                (o) =>
+                  `<button class="dropdown__option${o.value === row.value ? " is-selected" : ""}" data-value="${o.value}">${o.label}</button>`
+              )
+              .join("")
+          : `<button class="dropdown__option" data-value="">-</button>`;
+        return `
+          <div class="dropdown" data-field="${row.id}">
+            <div class="dropdown__trigger select-trigger">
+              <span>${selected ? selected.label : "-"}</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dropdown__panel">${options}</div>
+          </div>`;
+      }
+      return "";
+    }
+
+    function buildRow(row) {
+      return `
+        <div class="config-row" data-row="${row.id}">
+          <span class="config-row__label">
+            ${row.label}
+            ${row.hint ? `<span class="config-row__hint">${row.hint}</span>` : ""}
+          </span>
+          ${buildControl(row)}
+        </div>`;
+    }
+
+    function buildSection(section) {
+      return `
+        <div class="card config-section" data-section="${section.id}">
+          <div class="config-section__head">
+            <p class="card__title" style="margin:0;">${section.title}</p>
+          </div>
+          <div class="config-rows">
+            ${section.rows.map(buildRow).join("")}
+          </div>
+          <button class="add-rule" data-section="${section.id}">
+            <span>+</span> Add rule
+          </button>
+          <div class="add-rule-form" data-section-form="${section.id}">
+            <input type="text" placeholder="Rule name" />
+            <select>
+              <option value="toggle">Toggle</option>
+              <option value="number">Number</option>
+            </select>
+            <button class="btn btn--primary add-rule-confirm" style="padding:7px 12px;">Add</button>
+          </div>
+        </div>`;
+    }
+
+    // ---- Main render entry point --------------------------------------------
+    function renderConfig(schema) {
+      const grid = document.getElementById("config-grid");
+      grid.innerHTML = schema.sections.map(buildSection).join("");
+      wireInteractions();
+      setSaveStatus("All changes saved", false);
+    }
+
+    // ---- Interaction wiring --------------------------------------------------
+    function wireInteractions() {
+      document.querySelectorAll(".select-trigger").forEach((trigger) => {
+        const wrapper = trigger.closest("[data-field]");
+        const panel = trigger.nextElementSibling;
+        initDropdown(trigger, panel);
+        panel.querySelectorAll(".dropdown__option").forEach((opt) => {
+          opt.addEventListener("click", () => {
+            trigger.querySelector("span").textContent = opt.textContent;
+            panel.querySelectorAll(".dropdown__option").forEach((o) => o.classList.remove("is-selected"));
+            opt.classList.add("is-selected");
+            panel.classList.remove("is-open");
+            wrapper.dataset.value = opt.dataset.value;
+            setSaveStatus("Unsaved changes", true);
+          });
+        });
+      });
+
+      document.querySelectorAll('input[type="checkbox"], input[type="number"]').forEach((el) => {
+        el.addEventListener("change", () => setSaveStatus("Unsaved changes", true));
+      });
+
+      document.querySelectorAll(".add-rule").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelector(`[data-section-form="${btn.dataset.section}"]`).classList.toggle("is-open");
+        });
+      });
+
+      document.querySelectorAll(".add-rule-confirm").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const form = btn.closest(".add-rule-form");
+          const nameInput = form.querySelector('input[type="text"]');
+          const type = form.querySelector("select").value;
+          const name = nameInput.value.trim();
+          if (!name) { nameInput.focus(); return; }
+
+          const rowsContainer = form.previousElementSibling;
+          const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+          const row = type === "number"
+            ? { id, label: name, type: "number", unit: "days", value: null }
+            : { id, label: name, type: "toggle", value: null };
+
+          rowsContainer.insertAdjacentHTML("beforeend", buildRow(row));
+          wireInteractions();
+          nameInput.value = "";
+          form.classList.remove("is-open");
+          setSaveStatus("Unsaved changes", true);
+          // TODO: POST the new rule to the backend, e.g.
+          // fetch('/api/policy/rules', { method: 'POST', body: JSON.stringify(row) })
+        });
+      });
+    }
+
+    function setSaveStatus(text, isUnsaved) {
+      unsaved = !!isUnsaved;
+      const status = document.getElementById("save-status");
+      status.textContent = text;
+      status.style.color = isUnsaved ? "var(--amber)" : "var(--text-secondary)";
+    }
+
+    // ---- Collecting current values for a save request --------------------------
+    function collectConfigValues() {
+      const values = {};
+      document.querySelectorAll("[data-field]").forEach((el) => {
+        if (el.tagName === "INPUT" && el.type === "checkbox") {
+          values[el.dataset.field] = el.checked;
+        } else if (el.tagName === "INPUT" && el.type === "number") {
+          values[el.dataset.field] = el.value === "" ? null : Number(el.value);
+        } else if (el.dataset.field) {
+          values[el.dataset.field] = el.dataset.value || null;
+        }
+      });
+      return values;
+    }
+
+    document.getElementById("save-btn").addEventListener("click", () => {
+      const payload = collectConfigValues();
+      // TODO: fetch('/api/policy', { method: 'PATCH', body: JSON.stringify(payload) })
+      setSaveStatus("All changes saved", false);
+    });
+
+    document.getElementById("reset-btn").addEventListener("click", () => {
+      if (confirm("Reset all rules on this policy to their default values?")) {
+        // TODO: fetch('/api/policy/reset', { method: 'POST' }).then(r => r.json()).then(renderConfig)
+      }
+    });
+
+    // Render immediately with placeholders; replace with the real fetch()
+    // from the API integration comment once the backend is wired up.
+    renderConfig(placeholderSchema);
+  </script>
+</body>
+</html>

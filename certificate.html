@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATOMS - Certificate Detail</title>
+  <link rel="stylesheet" href="atoms.css" />
+</head>
+<body>
+
+  <aside class="sidebar" data-sidebar></aside>
+
+  <main class="main">
+    <p class="breadcrumb"><a href="overview.html">&larr; Back to Overview</a></p>
+
+    <div class="page-header">
+      <div>
+        <h1 id="domain-heading">Loading…</h1>
+        <p>Certificate details and compliance status</p>
+      </div>
+    </div>
+
+    <div id="detail-container">
+      <div class="card" style="color:var(--text-secondary);">Loading certificate details…</div>
+    </div>
+  </main>
+
+  <script src="atoms.js"></script>
+  <script>
+    renderSidebar("certificate");
+
+    const statusLabel = { compliant: "Compliant", warning: "Warning", noncompliant: "Not compliant" };
+
+    function formatDate(iso) {
+      if (!iso) return "-";
+      const d = new Date(iso);
+      return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    }
+
+    function renderDetail(cert) {
+      document.getElementById("domain-heading").textContent = cert.domain;
+
+      const flaggedBlock = (cert.status !== "compliant") ? `
+        <div class="callout callout--issue">
+          <p class="callout__title">Why this certificate is flagged</p>
+          <p class="callout__body">${cert.flagReason ?? "No reason provided."}</p>
+        </div>
+        <div class="callout callout--fix">
+          <p class="callout__title">Suggested remedy</p>
+          <p class="callout__body">${cert.suggestedRemedy ?? "No remedy provided."}</p>
+        </div>
+      ` : "";
+
+      document.getElementById("detail-container").innerHTML = `
+        <div class="card" style="margin-bottom: 18px;">
+          <span class="pill pill--${cert.status}" style="margin-bottom:14px;">${statusLabel[cert.status] ?? cert.status}</span>
+          <div class="kv-list">
+            <div class="kv-row"><span class="kv-row__label">Issuer</span><span class="kv-row__value">${cert.issuer}</span></div>
+            <div class="kv-row"><span class="kv-row__label">Valid From</span><span class="kv-row__value">${formatDate(cert.validFrom)}</span></div>
+            <div class="kv-row"><span class="kv-row__label">Valid Until</span><span class="kv-row__value">${formatDate(cert.validUntil)}</span></div>
+            <div class="kv-row"><span class="kv-row__label">Days Left</span><span class="kv-row__value">${cert.daysLeft === null ? "Expired" : cert.daysLeft}</span></div>
+            <div class="kv-row"><span class="kv-row__label">Signature Algorithm</span><span class="kv-row__value">${cert.signatureAlgorithm}</span></div>
+            <div class="kv-row"><span class="kv-row__label">Key Type / Length</span><span class="kv-row__value">${cert.keyType}</span></div>
+            <div class="kv-row"><span class="kv-row__label">Subject Alternative Names</span><span class="kv-row__value">${(cert.subjectAlternativeNames || []).join(", ")}</span></div>
+            <div class="kv-row"><span class="kv-row__label">Owner</span><span class="kv-row__value">${cert.owner ?? "Unassigned"}</span></div>
+          </div>
+        </div>
+        ${flaggedBlock}
+      `;
+    }
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("id");
+      if (!id) {
+        document.getElementById("domain-heading").textContent = "No certificate selected";
+        renderError(document.getElementById("detail-container"), "no certificate id was provided in the URL");
+        return;
+      }
+      try {
+        const cert = await Api.getCertificate(id);
+        renderDetail(cert);
+      } catch (err) {
+        document.getElementById("domain-heading").textContent = "Certificate not found";
+        renderError(document.getElementById("detail-container"), err.message);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

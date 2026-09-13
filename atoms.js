@@ -2,7 +2,7 @@
 // each page calls renderSidebar('overview' | 'report' | 'configuration')
 function renderSidebar(page) {
   const items = [
-    { key: "overview", label: "Overview", href: "overview.html" },
+    { key: "overview", label: "Overview", href: "index.html" },
     { key: "certificate", label: "Certificate", href: "certificate.html" },
     { key: "report", label: "Report", href: "report.html" },
     { key: "configuration", label: "Configuration", href: "configuration.html" },
